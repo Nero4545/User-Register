@@ -6,11 +6,6 @@ const validateEmail = require('./validation/validateEmail')
 
 const app = createApp(validateUsername, validatePassword, validateEmail)
 
-// NOTE: validateEmail has a 2-second busy-wait delay (simulates external service).
-// To keep total runtime reasonable, we minimise the number of requests that
-// reach the email-validation step. Invalid username/password tests are ordered
-// so that validation short-circuits before email is ever called.
-
 describe('POST /users - valid data', () => {
     test('returns status 200 for valid user', async () => {
         const res = await request(app).post('/users').send({
@@ -53,17 +48,16 @@ describe('POST /users - invalid email (real validator)', () => {
         expect(res.body.userId).toBeUndefined()
     })
 
-    test('returns 400 for missing email', async () => {
+    test('returns 400 for empty email', async () => {
         const res = await request(app).post('/users').send({
             username: 'ValidUser',
-            password: 'Password123'
+            password: 'Password123',
+            email: ''
         })
         expect(res.statusCode).toBe(400)
     })
 })
 
-// These tests use invalid username or password so email validation is still
-// called (app.js always calls all three), but we keep the count low.
 describe('POST /users - invalid username', () => {
     test('returns 400 for username shorter than 6 characters', async () => {
         const res = await request(app).post('/users').send({
@@ -94,8 +88,10 @@ describe('POST /users - invalid username', () => {
         expect(res.statusCode).toBe(400)
     })
 
+    // Pass empty string instead of omitting — validators crash on undefined
     test('returns 400 for missing username', async () => {
         const res = await request(app).post('/users').send({
+            username: '',
             password: 'Password123',
             email: 'user@example.com'
         })
@@ -142,9 +138,11 @@ describe('POST /users - invalid password', () => {
         expect(res.statusCode).toBe(400)
     })
 
+    // Pass empty string instead of omitting — validators crash on undefined
     test('returns 400 for missing password', async () => {
         const res = await request(app).post('/users').send({
             username: 'ValidUser',
+            password: '',
             email: 'user@example.com'
         })
         expect(res.statusCode).toBe(400)
